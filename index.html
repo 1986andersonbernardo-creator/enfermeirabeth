@@ -370,6 +370,14 @@ const valorDe = o => o.valor != null ? o.valor : (vinculoDe(o)?.valorPorPlantao 
 const STATUS_LABEL = { previsto:"Previsto", trabalhado:"Trabalhei", nao_trabalhado:"Não trabalhei", extra:"Extra" };
 const STATUS_ICON  = { previsto:"🔵", trabalhado:"🟢", nao_trabalhado:"🔴", extra:"🟡" };
 
+// Regra de ouro do calendário: a bolinha representa UMA ocorrência real da profissional.
+// Vários plantões do MESMO status no dia = 1 bolinha apenas (não duplica indicador).
+const DOT_PRIORITY = ["trabalhado","previsto","extra","nao_trabalhado"];
+function dotStatuses(occs){
+  const set = new Set((occs||[]).map(o => o.extra ? "extra" : o.status));
+  return DOT_PRIORITY.filter(s => set.has(s));
+}
+
 /* ============ CONFLITOS DE HORÁRIO ============ */
 function conflitosNoDia(dk){
   const d0 = parseKey(dk).getTime(), d1 = d0 + 86400000;
@@ -530,9 +538,9 @@ function renderCalendario(){
   for(let d=1; d<=daysInMonth; d++){
     const dk = `${calMonth}-${pad(d)}`;
     const occs = map[dk] || [];
-    const dots = occs.slice(0,4).map(o =>
-      `<span class="dot dot-${o.extra ? "extra" : o.status}"></span>`).join("") +
-      (occs.length > 4 ? `<span class="small" style="font-size:.6rem;font-weight:700;color:var(--muted)">+${occs.length-4}</span>` : "");
+    // 1 bolinha por status presente no dia — o dia só tem bolinha se existe
+    // ocorrência real de plantão da profissional (gerada pelo motor de escalas)
+    const dots = dotStatuses(occs).map(s => `<span class="dot dot-${s}"></span>`).join("");
     cells += `<button class="cal-cell ${dk===tk?"today":""}" onclick="openDay('${dk}')">
       <span class="d">${d}</span><span class="dots">${dots}</span></button>`;
   }
@@ -552,6 +560,7 @@ function renderCalendario(){
       <span><i class="dot-trabalhado"></i> Trabalhei</span>
       <span><i class="dot-nao_trabalhado"></i> Não trabalhei</span>
       <span><i class="dot-extra"></i> Extra</span>
+      <span style="opacity:.85">⚪ Sem bolinha = folga</span>
     </div>
     ${temDado ? `<button class="btn btn-outline btn-block" style="margin-top:16px" onclick="openExtraForm('${tk}')">➕ Plantão extra</button>` : ""}`;
 }
