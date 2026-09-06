@@ -1,5 +1,5 @@
 /* Enfermeira Beth — Service Worker (offline-first, sem dependências) */
-const CACHE = "enfermeira-beth-v3";
+const CACHE = "enfermeira-beth-v4";
 const ASSETS = ["./", "./index.html", "./manifest.json",
   "./img/logo-mark.png", "./img/logo-full.png",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png"];

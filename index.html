@@ -58,6 +58,11 @@ input,select,textarea{font-family:inherit;font-size:1rem;color:var(--text)}
 .brand h1{font-size:1.05rem;font-weight:700;line-height:1.1}
 .brand small{font-weight:400;opacity:.85;font-size:.7rem;display:block}
 .iconbtn{width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.15);font-size:1.1rem;display:grid;place-items:center}
+.support-btn{
+  display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);
+  color:#fff;border-radius:99px;font-size:.72rem;font-weight:700;white-space:nowrap;
+}
 main{padding:16px}
 /* ===================== CARDS ===================== */
 .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
@@ -229,7 +234,7 @@ main{padding:16px}
         <small>Controle inteligente de plantões</small>
       </div>
     </div>
-    <button class="iconbtn" onclick="openSupport()" title="Suporte">🆘</button>
+    <button class="support-btn" onclick="openSupport()" title="Suporte / Sugestão">💬 Suporte / Sugestão</button>
   </header>
 
   <main>
@@ -1002,8 +1007,9 @@ function renderConfig(){
       <button class="btn btn-danger btn-block" style="margin-top:18px" onclick="wipeAll()">🗑️ Apagar todos os dados</button>
     </div>
     <div class="card">
-      <h2>🆘 Ajuda</h2>
-      <button class="btn btn-soft btn-block" onclick="openSupport()">Falar com o suporte no WhatsApp</button>
+      <h2>💬 Suporte / Sugestão</h2>
+      <button class="btn btn-soft btn-block" onclick="openSupport('suporte')">🟢 Falar com o suporte no WhatsApp</button>
+      <button class="btn btn-soft btn-block" style="margin-top:10px" onclick="openSupport('sugestao')">💡 Enviar uma sugestão</button>
       <div style="text-align:center;margin-top:16px">
         <img class="about-logo" src="img/logo-mark.png" alt="Enfermeira Bete">
         <p class="small muted">
@@ -1018,9 +1024,11 @@ function saveNome(){
   db.settings.nome = document.getElementById("cfg-nome").value.trim();
   saveDB(); toast("Nome salvo ✅"); render();
 }
-function openSupport(){
-  const msg = encodeURIComponent("Olá, preciso de ajuda com o aplicativo Enfermeira BETH.");
-  window.open(`https://wa.me/5581985008954?text=${msg}`, "_blank");
+function openSupport(tipo){
+  const msg = tipo === "sugestao"
+    ? "Olá! Tenho uma sugestão para o aplicativo Enfermeira BETH:"
+    : "Olá, preciso de ajuda com o aplicativo Enfermeira BETH.";
+  window.open(`https://wa.me/5581985008954?text=${encodeURIComponent(msg)}`, "_blank");
 }
 function shareApp(){
   const data = { title:"Enfermeira Beth", text:"Controle inteligente de plantões 💙", url: location.href };
