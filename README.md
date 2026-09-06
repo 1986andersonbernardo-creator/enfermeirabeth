@@ -12,6 +12,8 @@ Cadastre seus vínculos (paciente + cooperativa + valor + escala) **uma única v
 - 💰 **Financeiro** — previsto vs. realizado, com filtros por mês, paciente, cooperativa e período
 - ⚠️ **Aviso de conflito** de horários sobrepostos
 - 📝 **Observações** por plantão e por dia
+- 💊 **Medicações dos pacientes** — cadastro com vários horários, lembrete por horario, estado ⏰/🔵/🟢/🔴 y histórico de administración (todo local)
+- 🔔 **Lembretes de medicação** — notificación dentro del app y vía Notification API cuando el dispositivo lo permite
 - 📲 **PWA instalável** — adiciona à tela inicial do celular
 - 🔒 **100% offline e privado** — sem login, sem servidor: os dados ficam apenas no seu celular
 - 💾 **Backup** — exportar/importar seus dados em JSON

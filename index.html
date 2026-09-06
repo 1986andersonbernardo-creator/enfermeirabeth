@@ -79,8 +79,8 @@ main{padding:16px}
   background:var(--card);border-top:1px solid var(--line);
   display:flex;
 }
-.bottomnav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.62rem;color:var(--muted);font-weight:600}
-.bottomnav button .ico{font-size:1.25rem;line-height:1}
+.bottomnav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.56rem;color:var(--muted);font-weight:600}
+.bottomnav button .ico{font-size:1.15rem;line-height:1}
 .bottomnav button.active{color:var(--primary)}
 
 /* ===================== BOTÕES ===================== */
@@ -171,6 +171,11 @@ main{padding:16px}
 .breakdown .b-val{font-weight:700;color:var(--primary-dark);text-align:right}
 .breakdown .b-n{font-size:.72rem;color:var(--muted)}
 
+/* ===================== MEDICAÇÕES ===================== */
+.perm-banner{background:linear-gradient(135deg,#eef7f4,#fff);border:1px solid #d7e7e2;border-radius:14px;padding:12px;font-size:.82rem;margin-bottom:12px}
+.hist-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 4px;border-bottom:1px solid var(--line);font-size:.85rem}
+.hist-row:last-child{border-bottom:none}
+
 /* ===================== AVISOS / TOAST / WELCOME ===================== */
 .warn{background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:12px;padding:10px 12px;font-size:.8rem;margin-bottom:12px;display:flex;gap:8px}
 #toast{
@@ -241,6 +246,7 @@ main{padding:16px}
     <section id="view-inicio"></section>
     <section id="view-calendario" class="hidden"></section>
     <section id="view-vinculos" class="hidden"></section>
+    <section id="view-medicacoes" class="hidden"></section>
     <section id="view-financeiro" class="hidden"></section>
     <section id="view-config" class="hidden"></section>
   </main>
@@ -249,6 +255,7 @@ main{padding:16px}
     <button data-tab="inicio" class="active"><span class="ico">🏠</span>Início</button>
     <button data-tab="calendario"><span class="ico">📅</span>Calendário</button>
     <button data-tab="vinculos"><span class="ico">🩺</span>Plantões</button>
+    <button data-tab="medicacoes"><span class="ico">💊</span>Medicação</button>
     <button data-tab="financeiro"><span class="ico">💰</span>Financeiro</button>
     <button data-tab="config"><span class="ico">⚙️</span>Config</button>
   </nav>
@@ -292,7 +299,7 @@ const fmtRange = (ini,fim) => `${fmtHM(ini)} → ${fmtHM(fim)}`;
 /* ============ PERSISTÊNCIA (LOCAL) ============ */
 const DB_KEY = "enfermeiraBeth_v1";
 const SCHEMA = 1;
-let db = { schema: SCHEMA, settings:{ nome:"", onboarded:false }, vinculos:[], ocorrencias:[], dayNotes:{} };
+let db = { schema: SCHEMA, settings:{ nome:"", onboarded:false }, vinculos:[], ocorrencias:[], dayNotes:{}, medRegistros:[] };
 
 function loadDB(){
   try{
@@ -305,6 +312,8 @@ function loadDB(){
     if(!Array.isArray(db.vinculos)) db.vinculos = [];
     if(!Array.isArray(db.ocorrencias)) db.ocorrencias = [];
     if(!db.dayNotes || typeof db.dayNotes !== "object") db.dayNotes = {};
+    if(!Array.isArray(db.medRegistros)) db.medRegistros = []; // registros de administração (v2)
+    db.vinculos.forEach(v => { if(!Array.isArray(v.medicacoes)) v.medicacoes = []; });
   }catch(e){
     console.error("Falha ao carregar dados locais", e);
     toast("⚠️ Não foi possível ler os dados salvos.");
@@ -394,6 +403,71 @@ function conflitosNoDia(dk){
       if(list[i].inicioISO < list[j].fimISO && list[j].inicioISO < list[i].fimISO)
         pares.push([list[i], list[j]]);
   return pares;
+}
+
+/* ============ MEDICAÇÕES (100% local) ============ */
+// A medicação pertence ao PACIENTE (vínculo); o plantão apenas define quando Beth está responsável.
+function medDe(medId){
+  for(const v of db.vinculos){
+    const m = (v.medicacoes||[]).find(x => x.id === medId);
+    if(m) return { v, m };
+  }
+  return null;
+}
+const medAtivas = () => db.vinculos.filter(v => v.ativo)
+  .flatMap(v => (v.medicacoes||[]).filter(m => m.ativo).map(m => ({ v, m })));
+
+function getRegistro(vinculoId, medId, dataKey, horario){
+  return db.medRegistros.find(r => r.vinculoId===vinculoId && r.medId===medId && r.dataKey===dataKey && r.horario===horario);
+}
+// Chave determinística (vínculo+medicamento+data+horário) → nunca duplica registro
+function setRegistro(vinculoId, medId, dataKey, horario, status){
+  let r = getRegistro(vinculoId, medId, dataKey, horario);
+  if(r){ r.status = status; r.marcadoEm = Date.now(); }
+  else db.medRegistros.push({ id: uid(), vinculoId, medId, dataKey, horario, status, marcadoEm: Date.now() });
+  saveDB();
+}
+function medDesfazerRegistro(vinculoId, medId, dataKey, horario){
+  db.medRegistros = db.medRegistros.filter(r =>
+    !(r.vinculoId===vinculoId && r.medId===medId && r.dataKey===dataKey && r.horario===horario));
+  saveDB();
+}
+// Todas as ocorrências de medicação do dia (med ativas de vínculos ativos), ordenadas por horário
+function medOcorrenciasHoje(dataKey){
+  const list = [];
+  medAtivas().forEach(({ v, m }) => {
+    (m.horarios||[]).forEach(h => list.push({
+      vinculoId: v.id, paciente: v.paciente, medId: m.id,
+      nome: m.nome, dose: m.dose, obs: m.obs, lembrete: m.lembrete,
+      horario: h, registro: getRegistro(v.id, m.id, dataKey, h) || null
+    }));
+  });
+  list.sort((a,b) => a.horario.localeCompare(b.horario) || a.paciente.localeCompare(b.paciente));
+  return list;
+}
+function statusDe(item, agora){
+  if(item.registro) return item.registro.status; // administrada | nao_administrada
+  agora = agora || new Date();
+  const agoraMin = agora.getHours()*60 + agora.getMinutes();
+  const [h,m] = item.horario.split(":").map(Number);
+  return (h*60+m) >= agoraMin ? "proxima" : "pendente";
+}
+const STATUS_MED = { proxima:"⏰ Próxima", pendente:"🔵 Pendente", administrada:"🟢 Administrada", nao_administrada:"🔴 Não administrada" };
+const CHIP_MED   = { proxima:"st-extra", pendente:"st-previsto", administrada:"st-trabalhado", nao_administrada:"st-nao_trabalhado" };
+
+function proximaMedicacaoHoje(){
+  const pend = medOcorrenciasHoje(todayKey()).filter(i => !i.registro);
+  if(!pend.length) return null;
+  const agora = new Date(); const agoraMin = agora.getHours()*60 + agora.getMinutes();
+  const fut = pend.filter(i => { const [h,m] = i.horario.split(":").map(Number); return h*60+m >= agoraMin; });
+  return fut[0] || pend[0]; // próxima do dia; se todas atrasadas, mostra a primeira
+}
+function proximaDoPaciente(vId){
+  const pend = medOcorrenciasHoje(todayKey()).filter(i => !i.registro && i.vinculoId === vId);
+  if(!pend.length) return null;
+  const agora = new Date(); const agoraMin = agora.getHours()*60 + agora.getMinutes();
+  const fut = pend.filter(i => { const [h,m] = i.horario.split(":").map(Number); return h*60+m >= agoraMin; });
+  return fut[0] || pend[0];
 }
 
 /* ============ UI BASE: TOAST / SHEET / TABS ============ */
@@ -498,6 +572,21 @@ function renderInicio(){
           </div>
           <span class="chip st-${proximo.status}">${STATUS_ICON[proximo.status]} ${STATUS_LABEL[proximo.status]}</span>
         </div></div>`;
+    }
+
+    const proxMed = proximaMedicacaoHoje();
+    if(proxMed){
+      html += `<div class="card"><h2>💊 Próxima medicação</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <div>
+            <div style="font-weight:800">${esc(proxMed.nome)}${proxMed.dose ? " " + esc(proxMed.dose) : ""}</div>
+            <div class="small muted">Paciente: ${esc(proxMed.paciente)}</div>
+            <div class="small muted">⏰ Hoje às ${proxMed.horario}${proxMed.lembrete ? " 🔔" : ""}</div>
+          </div>
+          <button class="btn btn-soft btn-sm" onclick="switchTab('medicacoes')">Ver</button>
+        </div></div>`;
+    } else if(medAtivas().length){
+      html += `<div class="card"><h2>💊 Próxima medicação</h2><div class="muted small">Nenhuna medicação pendente próxima. 🎉</div></div>`;
     }
 
     html += `<div class="card"><h2>🗓️ Este mês</h2><div class="fin-summary">
@@ -751,7 +840,8 @@ function renderVinculos(){
         🔁 Escala ${escalaTxt} • início ${fmtBR(v.dataInicial)}
       </div>
       ${v.observacoes ? `<div class="small muted" style="margin-top:8px">📝 ${esc(v.observacoes)}</div>` : ""}
-      <div class="small" style="margin-top:8px">🟢 ${trabalhados} trabalhados • 🔵 ${proximos} previstos</div>
+      <div class="small" style="margin-top:8px">🟢 ${trabalhados} trabalhados • 🔵 ${proximos} previstos • 💊 ${(v.medicacoes||[]).filter(m => m.ativo).length} medicação(es)</div>
+      <button class="btn btn-soft btn-sm btn-block" style="margin-top:8px" onclick="openPacienteMed('${v.id}')">💊 Medicações do paciente</button>
       <div style="display:flex;gap:8px;margin-top:12px">
         <button class="btn btn-soft btn-sm" style="flex:1" onclick="openVinculoForm('${v.id}')">✏️ Editar</button>
         <button class="btn btn-soft btn-sm" style="flex:1" onclick="toggleVinculo('${v.id}')">${v.ativo ? "⏸️ Pausar" : "▶️ Ativar"}</button>
@@ -814,6 +904,11 @@ function openVinculoForm(id){
     </div>
     <div class="field"><label>Data inicial (primeiro plantão) *</label><input id="vf-data" type="date" value="${v?.dataInicial||today}"></div>
     <div class="field"><label>Observações</label><textarea id="vf-obs" placeholder="Opcional — ex.: contato da família">${esc(v?.observacoes||"")}</textarea></div>
+    ${v ? `<div class="section-title">💊 Medicações do paciente</div>
+      <p class="small muted" style="margin-bottom:10px">Controle e lembretes — cadastradas só para ${esc(v.paciente)}.</p>
+      <button class="btn btn-soft btn-block" onclick="openPacienteMed('${v.id}')">💊 Ver / administrar medicações</button>
+      <button class="btn btn-soft btn-block" style="margin-top:8px" onclick="openMedForm('${v.id}')">➕ Adicionar medicamento</button>
+      <div style="height:12px"></div>` : ""}
     <button class="btn btn-primary btn-block" onclick="saveVinculo(${v?`'${v.id}'`:"null"})">${v ? "Salvar alterações" : "Cadastrar e gerar plantões"}</button>
     ${v ? `<p class="small muted" style="margin-top:10px;text-align:center">Ao alterar a escala, os plantões já trabalhados e editados são preservados.</p>` : ""}
   </div>`;
@@ -975,7 +1070,244 @@ function finLimpar(){
   finFiltros = { mes: finFiltros.mes || mkey(new Date()), paciente:"", coop:"", periodoIni:"", periodoFim:"" };
   renderFinanceiro();
 }
-/* ============ VIEW: CONFIGURAÇÕES ============ */
+/* ============ VIEW: MEDICAÇÕES DE HOJE ============ */
+let medHistData = null;
+function renderMedicacoes(){
+  const el = document.getElementById("view-medicacoes");
+  const dk = todayKey();
+  const list = medOcorrenciasHoje(dk);
+  let html = `<div class="section-title" style="margin-top:0">💊 Medicações de hoje • ${fmtLong(dk)}</div>`;
+
+  // banner de permissão de notificação (honesto sobre limitações)
+  if("Notification" in window){
+    if(Notification.permission === "default"){
+      html += `<div class="perm-banner">🔔 <b>Ativar lembretes?</b> O app pode avisar nos horários das medicações.<br>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="requestMedPermission()">Ativar notificações</button></div>`;
+    } else if(Notification.permission === "granted"){
+      html += `<p class="small" style="color:var(--accent);margin:0 4px 12px">🔔 Lembretes ativados neste dispositivo (com o app aberto ou em segundo plano recente).</p>`;
+    } else {
+      html += `<p class="small muted" style="margin:0 4px 12px">🔕 Notificações bloqueadas neste navegador — os lembretes aparecerão dentro do aplicativo.</p>`;
+    }
+  }
+
+  if(list.length === 0){
+    html += `<div class="card"><div class="empty-state">
+      <div class="big">💊</div>
+      Nenhuma medicação cadastrada.<br>
+      Cadastre as medicações dentro do cadastro de cada paciente.
+      <div style="margin-top:16px"><button class="btn btn-primary" onclick="switchTab('vinculos')">🩺 Ver pacientes</button></div>
+    </div></div>`;
+  } else {
+    html += `<div class="card">`;
+    let ultimoHorario = null;
+    list.forEach(item => {
+      if(item.horario !== ultimoHorario){ html += `<div class="section-title" style="margin:4px 0 8px">⏰ ${item.horario}</div>`; ultimoHorario = item.horario; }
+      html += medItemHTML(item, dk);
+    });
+    html += `</div>`;
+  }
+
+  // Histórico
+  if(!medHistData) medHistData = dk;
+  html += `<div class="card"><h2>📚 Histórico</h2>
+    <div class="field"><label>Data</label><input type="date" value="${medHistData}" onchange="medSetHist(this.value)"></div>
+    ${renderHistMed(medHistData)}</div>
+  <p class="small muted" style="margin:14px 6px 0">⚠️ O aplicativo organiza os horários informados pela profissional e não substitui prescrição ou orientação profissional.<br><br>
+  🔔 Sobre os lembretes: funcionam com o aplicativo aberto ou em segundo plano recente. Por ser 100% local (sem servidor), o alarme com o celular totalmente bloqueado não é garantido — limitação técnica de PWA no Android/iOS.</p>`;
+  el.innerHTML = html;
+}
+function medItemHTML(item, dk){
+  const st = statusDe(item);
+  const chip = `<span class="chip ${CHIP_MED[st]}">${STATUS_MED[st]}</span>`;
+  const reg = item.registro;
+  const regInfo = reg ? `<div class="small muted" style="margin-top:6px">Programado: ${item.horario} • Registrado: ${fmtHM(new Date(reg.marcadoEm))}</div>` : "";
+  let acoes = "";
+  if(!reg){
+    acoes = `<div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn btn-primary btn-sm" style="flex:1" onclick="medMarcar('${item.vinculoId}','${item.medId}','${dk}','${item.horario}','administrada')">✓ Administrado</button>
+      <button class="btn btn-danger btn-sm" onclick="medMarcar('${item.vinculoId}','${item.medId}','${dk}','${item.horario}','nao_administrada')">✕ Não admin.</button>
+    </div>`;
+  } else {
+    acoes = `<button class="btn btn-soft btn-sm" style="margin-top:10px" onclick="medDesfazer('${item.vinculoId}','${item.medId}','${dk}','${item.horario}')">↩️ Desfazer registro</button>`;
+  }
+  return `<div style="background:#fff;border-radius:14px;box-shadow:var(--shadow);padding:12px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+      <div><b>${esc(item.nome)}${item.dose ? " " + esc(item.dose) : ""}</b>
+      <div class="small muted">Paciente: ${esc(item.paciente)}</div>
+      ${item.obs ? `<div class="small muted">📝 ${esc(item.obs)}</div>` : ""}
+      ${item.lembrete ? "" : `<div class="small muted">🔕 Lembrete desativado</div>`}</div>
+      ${chip}
+    </div>
+    ${regInfo}
+    ${acoes}
+  </div>`;
+}
+function medMarcar(vId, medId, dk, horario, status){
+  setRegistro(vId, medId, dk, horario, status);
+  render();
+  toast(status === "administrada" ? "🟢 Administrada — registrado!" : "🔴 Registrado como não administrada.");
+}
+function medDesfazer(vId, medId, dk, horario){
+  medDesfazerRegistro(vId, medId, dk, horario);
+  render(); toast("Registro desfeito.");
+}
+function medSetHist(d){ medHistData = d || todayKey(); renderMedicacoes(); }
+function renderHistMed(dk){
+  const regs = db.medRegistros.filter(r => r.dataKey === dk)
+    .map(r => { const d = medDe(r.medId); return { ...r, nome: d ? d.m.nome : "(removido)", dose: d ? d.m.dose : "", paciente: d ? d.v.paciente : "(removido)" }; })
+    .sort((a,b) => a.paciente.localeCompare(b.paciente) || a.horario.localeCompare(b.horario));
+  if(!regs.length) return `<p class="small muted">Nenhum registro nesta data.</p>`;
+  let out = "", pac = null;
+  regs.forEach(r => {
+    if(r.paciente !== pac){ out += `<div class="section-title" style="margin:10px 0 4px">${esc(r.paciente)} — ${fmtBR(r.dataKey)}</div>`; pac = r.paciente; }
+    out += `<div class="hist-row">
+      <div><b>${r.horario}</b> — ${esc(r.nome)}${r.dose ? " " + esc(r.dose) : ""}</div>
+      <div style="text-align:right"><span class="chip ${CHIP_MED[r.status]}">${STATUS_MED[r.status]}</span>
+      <div class="small muted">registrado ${fmtHM(new Date(r.marcadoEm))}</div></div>
+    </div>`;
+  });
+  return out;
+}
+/* ============ SHEET: FORMULÁRIO DE MEDICAMENTO ============ */
+let _medHoras = [];
+function openMedForm(vId, medId){
+  const v = db.vinculos.find(x => x.id === vId); if(!v) return;
+  const med = medId ? (v.medicacoes||[]).find(m => m.id === medId) : null;
+  _medHoras = med ? [...(med.horarios||[])] : [""];
+  let html = sheetHead(med ? "✏️ Editar medicamento" : "➕ Adicionar medicamento") + `<div class="sheet-body">
+    <div id="med-error" class="form-error hidden"></div>
+    <p class="small muted" style="margin-bottom:12px">Paciente: <b>${esc(v.paciente)}</b></p>
+    <div class="field"><label>Nome do medicamento *</label><input id="med-nome" maxlength="60" placeholder="Ex.: Dipirona" value="${esc(med?.nome||"")}"></div>
+    <div class="field"><label>Dose (opcional)</label><input id="med-dose" maxlength="30" placeholder="Ex.: 500 mg" value="${esc(med?.dose||"")}"></div>
+    <div class="field"><label>Observação (opcional)</label><input id="med-obs" maxlength="120" placeholder="Ex.: Administrar após alimentação" value="${esc(med?.obs||"")}"></div>
+    <div class="section-title">⏰ Horários</div>
+    <div id="med-horas-list"></div>
+    <button class="btn btn-soft btn-sm" onclick="medAddHora()">➕ Adicionar horário</button>
+    <div class="field" style="margin-top:16px"><label style="display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--text)">
+      <input type="checkbox" id="med-lembrete" ${med?.lembrete !== false ? "checked" : ""} style="width:20px;height:20px"> 🔔 Lembrete ativado</label></div>
+    <div class="field"><label style="display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--text)">
+      <input type="checkbox" id="med-ativo" ${med?.ativo !== false ? "checked" : ""} style="width:20px;height:20px"> Medicamento ativo</label></div>
+    <button class="btn btn-primary btn-block" onclick="medSalvar('${vId}', ${med ? `'${medId}'` : "null"})">Salvar medicamento</button>
+  </div>`;
+  openSheet(html);
+  medRenderHoras();
+}
+function medAddHora(){ _medHoras.push(""); medRenderHoras(); }
+function medDelHora(i){ _medHoras.splice(i,1); medRenderHoras(); }
+function medHoraChange(i, val){ _medHoras[i] = val; }
+function medRenderHoras(){
+  const c = document.getElementById("med-horas-list"); if(!c) return;
+  c.innerHTML = _medHoras.map((h,i) => `<div class="field-row" style="align-items:center;margin-bottom:8px">
+    <div class="field" style="margin-bottom:0"><input type="time" value="${esc(h)}" oninput="medHoraChange(${i},this.value)"></div>
+    <button class="btn btn-danger btn-sm" onclick="medDelHora(${i})">✕</button>
+  </div>`).join("") || `<p class="small muted">Nenhum horário — adicione pelo menos um.</p>`;
+}
+function medSalvar(vId, medId){
+  const v = db.vinculos.find(x => x.id === vId); if(!v) return;
+  const err = document.getElementById("med-error");
+  const fail = m => { err.textContent = "⚠️ " + m; err.classList.remove("hidden"); };
+  const nome = document.getElementById("med-nome").value.trim();
+  const dose = document.getElementById("med-dose").value.trim();
+  const obs = document.getElementById("med-obs").value.trim();
+  const lembrete = document.getElementById("med-lembrete").checked;
+  const ativo = document.getElementById("med-ativo").checked;
+  const horas = [...new Set(_medHoras.filter(Boolean))].sort();
+  if(!nome) return fail("Informe o nome do medicamento.");
+  if(!horas.length) return fail("Adicione pelo menos um horário.");
+  if(medId){
+    const med = (v.medicacoes||[]).find(m => m.id === medId);
+    Object.assign(med, { nome, dose, obs, lembrete, ativo, horarios: horas });
+  } else {
+    v.medicacoes = v.medicacoes || [];
+    v.medicacoes.push({ id: uid(), nome, dose, obs, lembrete, ativo, horarios: horas });
+  }
+  saveDB(); closeSheet(); render(); toast("💊 Medicação salva!");
+}
+function medExcluir(vId, medId){
+  if(!confirm("Excluir este medicamento e seus horários? O histórico de administração permanece salvo.")) return;
+  const v = db.vinculos.find(x => x.id === vId); if(!v) return;
+  v.medicacoes = (v.medicacoes||[]).filter(m => m.id !== medId);
+  saveDB(); closeSheet(); render(); toast("Medicamento excluído.");
+}
+function medToggleAtivo(vId, medId){
+  const v = db.vinculos.find(x => x.id === vId); if(!v) return;
+  const med = (v.medicacoes||[]).find(m => m.id === medId); if(!med) return;
+  med.ativo = !med.ativo; saveDB(); closeSheet(); openPacienteMed(vId); render();
+}
+/* ============ SHEET: MEDICAÇÕES DO PACIENTE ============ */
+function openPacienteMed(vId){
+  const v = db.vinculos.find(x => x.id === vId); if(!v) return;
+  const meds = v.medicacoes || [];
+  const prox = proximaDoPaciente(vId);
+  let html = sheetHead(`💊 Medicações — ${esc(v.paciente)}`) + `<div class="sheet-body">`;
+  if(prox) html += `<div class="card" style="background:var(--primary-soft)"><b>⏰ Próxima medicação: ${prox.horario} — ${esc(prox.nome)}${prox.dose ? " " + esc(prox.dose) : ""}</b></div>`;
+  if(meds.length === 0) html += `<div class="empty-state"><div class="big">💊</div>Nenhuma medicação cadastrada para este paciente.</div>`;
+  meds.forEach(m => {
+    html += `<div class="card">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+        <div><b>💊 ${esc(m.nome)}${m.dose ? " " + esc(m.dose) : ""}</b> ${m.ativo ? "" : `<span class="chip st-nao_trabalhado">Inativo</span>`}</div>
+        <span class="chip ${m.lembrete ? "st-trabalhado" : "st-nao_trabalhado"}">${m.lembrete ? "🔔" : "🔕"}</span>
+      </div>
+      <div style="margin-top:8px">${(m.horarios||[]).map(h => `<span class="chip st-previsto" style="margin:0 4px 4px 0">${h}</span>`).join("")}</div>
+      ${m.obs ? `<div class="small muted" style="margin-top:6px">📝 ${esc(m.obs)}</div>` : ""}
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-soft btn-sm" style="flex:1" onclick="openMedForm('${v.id}','${m.id}')">✏️ Editar</button>
+        <button class="btn btn-soft btn-sm" onclick="medToggleAtivo('${v.id}','${m.id}')">${m.ativo ? "⏸️" : "▶️"}</button>
+        <button class="btn btn-danger btn-sm" onclick="medExcluir('${v.id}','${m.id}')">🗑️</button>
+      </div>
+    </div>`;
+  });
+  html += `<button class="btn btn-primary btn-block" onclick="openMedForm('${vId}')">➕ Adicionar medicamento</button>
+    <p class="small muted" style="margin-top:12px;text-align:center">O app organiza os horários informados por você e não substitui prescrição médica.</p>
+  </div>`;
+  openSheet(html);
+}
+
+/* ============ LEMBRETES (best-effort, honesto) ============ */
+const _medAlertados = new Set(); // por sessão: evita alertar o mesmo horário duas vezes
+function checkMedReminders(){
+  try{
+    const agora = new Date(); const dk = dkey(agora);
+    const agoraMin = agora.getHours()*60 + agora.getMinutes();
+    medOcorrenciasHoje(dk).forEach(item => {
+      if(!item.lembrete || item.registro) return;
+      const [h,m] = item.horario.split(":").map(Number); const hm = h*60+m;
+      if(agoraMin >= hm && agoraMin - hm <= 15){ // janela de 15 min após o horário
+        const key = `${item.medId}|${dk}|${item.horario}`;
+        if(_medAlertados.has(key)) return;
+        _medAlertados.add(key);
+        notificarMed(item);
+        toast(`💊 ${item.horario} — ${item.nome}${item.dose ? " " + item.dose : ""} • ${item.paciente}`);
+      }
+    });
+  }catch(e){ /* nunca quebrar o app por causa de lembrete */ }
+}
+function notificarMed(item){
+  try{
+    if(!("Notification" in window) || Notification.permission !== "granted") return;
+    const titulo = "💊 Hora da medicação";
+    const corpo = `Paciente: ${item.paciente}\nMedicamento: ${item.nome}${item.dose ? " " + item.dose : ""}\nHorário: ${item.horario}`;
+    const opcoes = { body: corpo, tag: `med-${item.medId}-${item.horario}`, renotify: true };
+    if(navigator.serviceWorker){
+      navigator.serviceWorker.ready
+        .then(reg => reg.showNotification(titulo, opcoes))
+        .catch(() => { try{ new Notification(titulo, opcoes); }catch(e){} });
+    } else {
+      new Notification(titulo, opcoes);
+    }
+  }catch(e){}
+}
+function requestMedPermission(){
+  try{
+    Notification.requestPermission().then(p => {
+      render();
+      toast(p === "granted" ? "🔔 Lembretes ativados!" : p === "denied" ? "🔕 Notificações bloqueadas pelo navegador." : "Sem problema — os lembretes aparecem dentro do app.");
+    });
+  }catch(e){ render(); }
+}
+
+
+
 function renderConfig(){
   const el = document.getElementById("view-config");
   const instalado = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
@@ -1013,7 +1345,7 @@ function renderConfig(){
       <div style="text-align:center;margin-top:16px">
         <img class="about-logo" src="img/logo-mark.png" alt="Enfermeira Bete">
         <p class="small muted">
-          Enfermeira BETH v1.1<br>
+          Enfermeira BETH v1.2<br>
           🔒 100% offline • Sem cadastro • Sem servidores<br>
           Seus dados nunca saem do seu celular.
         </p>
@@ -1055,7 +1387,7 @@ function importBackup(input){
       const data = JSON.parse(reader.result);
       if(!data || !Array.isArray(data.vinculos) || !Array.isArray(data.ocorrencias)) throw new Error("formato");
       if(!confirm("Importar este backup? Os dados atuais deste celular serão substituídos.")) return;
-      db = Object.assign({ schema:1, settings:{nome:"",onboarded:true}, vinculos:[], ocorrencias:[], dayNotes:{} }, data);
+      db = Object.assign({ schema:1, settings:{nome:"",onboarded:true}, vinculos:[], ocorrencias:[], dayNotes:{}, medRegistros:[] }, data);
       db.settings = Object.assign({ nome:"", onboarded:true }, db.settings);
       saveDB(); syncAll(); render();
       toast("Backup importado com sucesso ✅");
@@ -1069,7 +1401,7 @@ function importBackup(input){
 function wipeAll(){
   if(!confirm("APAGAR TODOS OS DADOS?\n\nVínculos, plantões, histórico trabalhado e valores serão permanentemente apagados deste dispositivo.")) return;
   if(!confirm("Tem certeza absoluta? Esta ação não pode ser desfeita.\n\nDica: exporte um backup antes.")) return;
-  db = { schema: SCHEMA, settings:{ nome:"", onboarded:true }, vinculos:[], ocorrencias:[], dayNotes:{} };
+  db = { schema: SCHEMA, settings:{ nome:"", onboarded:true }, vinculos:[], ocorrencias:[], dayNotes:{}, medRegistros:[] };
   saveDB(); render(); toast("Dados apagados.");
 }
 
@@ -1101,6 +1433,7 @@ function render(){
   if(currentTab === "inicio") renderInicio();
   else if(currentTab === "calendario") renderCalendario();
   else if(currentTab === "vinculos") renderVinculos();
+  else if(currentTab === "medicacoes") renderMedicacoes();
   else if(currentTab === "financeiro") renderFinanceiro();
   else if(currentTab === "config") renderConfig();
 }
@@ -1111,6 +1444,9 @@ loadDB();
 syncAll();
 if(!db.settings.onboarded) document.getElementById("welcome").classList.remove("hidden");
 render();
+// Lembretes de medicação: verificador cada 30s (best-effort, ver explicación al pie de la app)
+setInterval(checkMedReminders, 30000);
+checkMedReminders();
 // Splash: exibe a logo na abertura e some suavemente
 const _splash = document.getElementById("splash");
 setTimeout(() => {
