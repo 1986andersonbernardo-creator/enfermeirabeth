@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#155a72">
+<meta name="description" content="Enfermeira Beth — Controle inteligente de plantões. Offline, privado, no seu celular.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Enf. Beth">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Enfermeira Beth — Controle de Plantões</title>
+<style>
+/* ===================== BASE ===================== */
+:root{
+  --primary:#155a72; --primary-dark:#0e4254; --primary-soft:#e2eef0;
+  --accent:#2f8f80; --bg:#f5f4ee; --card:#ffffff;
+  --text:#1f2d2c; --muted:#6b7f7d; --line:#e3eceb;
+  --previsto:#3b82f6; --trabalhado:#10b981; --nao:#ef4444; --extra:#f59e0b;
+  --radius:16px; --shadow:0 2px 12px rgba(14,124,123,.08);
+  --nav-h:64px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg); color:var(--text);
+  min-height:100dvh; overscroll-behavior-y:none;
+}
+/* Fundo premium: degradês orgânicos discretos, coerentes com a logo (creme + petróleo + teal) */
+body::before{
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(55% 34% at 88% -6%, rgba(47,143,128,.12), transparent 62%),
+    radial-gradient(46% 30% at -10% 26%, rgba(21,90,114,.09), transparent 60%),
+    radial-gradient(42% 30% at 72% 108%, rgba(21,90,114,.07), transparent 60%),
+    linear-gradient(180deg,#f8f6ef 0%,#f1f5f3 100%);
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:1rem;color:var(--text)}
+.hidden{display:none!important}
+
+/* ===================== LAYOUT ===================== */
+#app{max-width:560px;margin:0 auto;padding-bottom:calc(var(--nav-h) + 24px)}
+.topbar{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  color:#fff;border-radius:0 0 20px 20px;
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .logo{width:42px;height:42px;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.22);flex-shrink:0}
+.brand .logo img{width:100%;height:100%;object-fit:cover;display:block}
+.brand h1{font-size:1.05rem;font-weight:700;line-height:1.1}
+.brand small{font-weight:400;opacity:.85;font-size:.7rem;display:block}
+.iconbtn{width:38px;height:38px;border-radius:12px;background:rgba(255,255,255,.15);font-size:1.1rem;display:grid;place-items:center}
+main{padding:16px}
+/* ===================== CARDS ===================== */
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.card h2{font-size:.95rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card h2 .spacer{flex:1}
+.section-title{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 4px 8px}
+.muted{color:var(--muted)} .small{font-size:.8rem}
+
+/* ===================== NAV ===================== */
+.bottomnav{
+  position:fixed;bottom:0;left:0;right:0;z-index:30;
+  max-width:560px;margin:0 auto;height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding-bottom:env(safe-area-inset-bottom);
+  background:var(--card);border-top:1px solid var(--line);
+  display:flex;
+}
+.bottomnav button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:.62rem;color:var(--muted);font-weight:600}
+.bottomnav button .ico{font-size:1.25rem;line-height:1}
+.bottomnav button.active{color:var(--primary)}
+
+/* ===================== BOTÕES ===================== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:12px 16px;font-weight:700;font-size:.9rem;transition:filter .15s}
+.btn:active{filter:brightness(.92)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-outline{background:#fff;color:var(--primary);border:1.5px solid var(--primary)}
+.btn-soft{background:var(--primary-soft);color:var(--primary-dark)}
+.btn-danger{background:#fee2e2;color:#b91c1c}
+.btn-block{width:100%}
+.btn-sm{padding:8px 12px;font-size:.8rem;border-radius:10px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:.7rem;font-weight:700}
+.st-previsto{background:#dbeafe;color:#1d4ed8}
+.st-trabalhado{background:#d1fae5;color:#047857}
+.st-nao_trabalhado{background:#fee2e2;color:#b91c1c}
+.st-extra{background:#fef3c7;color:#b45309}
+
+/* ===================== CALENDÁRIO ===================== */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-head .month{font-weight:800;font-size:1.05rem;text-transform:capitalize}
+.cal-head button{width:36px;height:36px;border-radius:10px;background:#fff;box-shadow:var(--shadow);font-size:1rem;color:var(--primary)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{text-align:center;font-size:.65rem;font-weight:700;color:var(--muted);padding:4px 0;text-transform:uppercase}
+.cal-cell{
+  aspect-ratio:1/1.05;background:#fff;border-radius:12px;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding-top:6px;position:relative;border:2px solid transparent;
+}
+.cal-cell.empty{background:transparent;box-shadow:none}
+.cal-cell.today{border-color:var(--primary)}
+.cal-cell .d{font-size:.85rem;font-weight:600}
+.cal-cell .dots{display:flex;gap:3px;margin-top:auto;margin-bottom:6px;flex-wrap:wrap;justify-content:center;max-width:90%}
+.cal-cell .dot{width:7px;height:7px;border-radius:50%}
+.dot-previsto{background:var(--previsto)} .dot-trabalhado{background:var(--trabalhado)}
+.dot-nao_trabalhado{background:var(--nao)} .dot-extra{background:var(--extra)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:.7rem;color:var(--muted)}
+.cal-legend span{display:inline-flex;align-items:center;gap:5px}
+.cal-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+/* ===================== LISTAS DE PLANTÃO ===================== */
+.shift-item{display:flex;gap:12px;align-items:flex-start;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:10px}
+.shift-item .time{min-width:64px;text-align:center;background:var(--primary-soft);color:var(--primary-dark);border-radius:10px;padding:8px 4px;font-weight:800;font-size:.8rem;line-height:1.3}
+.shift-item .info{flex:1;min-width:0}
+.shift-item .info .paciente{font-weight:700;font-size:.95rem}
+.shift-item .info .meta{font-size:.78rem;color:var(--muted);margin-top:2px}
+.shift-item .valor{font-weight:800;color:var(--primary-dark);font-size:.9rem;white-space:nowrap}
+.empty-state{text-align:center;color:var(--muted);padding:28px 16px;font-size:.9rem}
+.empty-state .big{font-size:2rem;margin-bottom:8px}
+
+/* ===================== SHEET (MODAL INFERIOR) ===================== */
+#backdrop{position:fixed;inset:0;background:rgba(15,40,39,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+#backdrop.open{opacity:1;pointer-events:auto}
+#sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;max-width:560px;margin:0 auto;
+  background:var(--bg);border-radius:22px 22px 0 0;max-height:88dvh;overflow-y:auto;
+  transform:translateY(100%);transition:transform .25s ease;padding-bottom:env(safe-area-inset-bottom);
+}
+#sheet.open{transform:translateY(0)}
+.sheet-grab{width:44px;height:5px;border-radius:99px;background:#cbd9d7;margin:10px auto 4px}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:8px 18px 4px}
+.sheet-head h3{font-size:1.05rem;font-weight:800}
+.sheet-close{width:32px;height:32px;border-radius:10px;background:#e7efee;font-size:.9rem;display:grid;place-items:center}
+.sheet-body{padding:12px 18px 24px}
+
+/* ===================== FORM ===================== */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:12px;background:#fff;outline:none}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}
+.field textarea{min-height:70px;resize:vertical}
+.field-row{display:flex;gap:10px}
+.field-row .field{flex:1}
+.form-error{background:#fee2e2;color:#b91c1c;font-size:.8rem;border-radius:10px;padding:10px;margin-bottom:12px}
+
+/* ===================== STATUS ===================== */
+.status-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.status-actions .btn{padding:14px}
+
+/* ===================== FINANCEIRO ===================== */
+.fin-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fin-box{background:#fff;border-radius:14px;box-shadow:var(--shadow);padding:14px}
+.fin-box .lbl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.fin-box .val{font-size:1.25rem;font-weight:800;margin-top:4px}
+.fin-box.recebido{background:linear-gradient(135deg,#d1fae5,#a7f3d0)}
+.fin-box.previsao{background:linear-gradient(135deg,#dbeafe,#bfdbfe)}
+.breakdown{display:flex;justify-content:space-between;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line);font-size:.88rem}
+.breakdown:last-child{border-bottom:none}
+.breakdown .b-val{font-weight:700;color:var(--primary-dark);text-align:right}
+.breakdown .b-n{font-size:.72rem;color:var(--muted)}
+
+/* ===================== AVISOS / TOAST / WELCOME ===================== */
+.warn{background:#fef3c7;border:1px solid #fde68a;color:#92400e;border-radius:12px;padding:10px 12px;font-size:.8rem;margin-bottom:12px;display:flex;gap:8px}
+#toast{
+  position:fixed;left:50%;bottom:calc(var(--nav-h) + 20px);transform:translateX(-50%) translateY(20px);
+  background:#1f2d2c;color:#fff;padding:11px 18px;border-radius:99px;font-size:.85rem;font-weight:600;
+  opacity:0;pointer-events:none;transition:all .25s;z-index:80;max-width:88%;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#welcome{
+  position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;justify-content:center;
+  background:linear-gradient(175deg,#f8f6ef 0%,#eef3f1 55%,#e2edea 100%);
+  color:var(--primary-dark);padding:32px;text-align:center;
+}
+#welcome::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(60% 30% at 85% 0%,rgba(47,143,128,.13),transparent 62%),
+    radial-gradient(52% 28% at 0% 100%,rgba(21,90,114,.10),transparent 60%);
+}
+#welcome > *{position:relative}
+#welcome .wb-logo{width:216px;max-width:62vw;border-radius:26px;box-shadow:0 12px 32px rgba(21,90,114,.16);margin:0 auto 20px;display:block}
+#welcome h2{font-size:1.55rem;font-weight:800;margin-bottom:6px}
+#welcome p{opacity:.85;font-size:.95rem;margin-bottom:28px}
+#welcome input{width:100%;max-width:320px;margin:0 auto 18px;padding:14px;border-radius:14px;border:1.5px solid var(--line);outline:none;text-align:center;font-size:1rem;display:block;background:#fff}
+#welcome .hint{font-size:.75rem;opacity:.6;margin-top:22px}
+
+/* ===================== SPLASH ===================== */
+#splash{
+  position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
+  background:linear-gradient(175deg,#f8f6ef 0%,#eef3f1 100%);
+  transition:opacity .35s ease;
+}
+#splash.hide{opacity:0;pointer-events:none}
+#splash img{width:200px;max-width:56vw;border-radius:24px;box-shadow:0 12px 32px rgba(21,90,114,.15)}
+.splash-bar{width:132px;height:4px;border-radius:99px;background:#e5e3d7;overflow:hidden}
+.splash-bar i{display:block;width:45%;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--primary),var(--accent));animation:splashslide 1.1s ease-in-out infinite}
+@keyframes splashslide{0%{transform:translateX(-110%)}100%{transform:translateX(300%)}}
+
+/* ===================== IDENTIDADE ===================== */
+.empty-logo{width:76px;height:76px;border-radius:20px;object-fit:cover;box-shadow:var(--shadow);margin-bottom:12px}
+.about-logo{width:58px;height:58px;border-radius:14px;object-fit:cover;box-shadow:var(--shadow);margin-bottom:8px}
+.avatar{width:36px;height:36px;border-radius:11px;background:var(--primary);color:#fff;font-weight:800;display:grid;place-items:center;font-size:.95rem;flex-shrink:0}
+
+@media (min-width:480px){ main{padding:20px} }
+
+
+</style>
+</head>
+<body>
+<div id="splash">
+  <img src="img/logo-full.png" alt="Enfermeira Bete">
+  <div class="splash-bar"><i></i></div>
+</div>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo"><img src="img/logo-mark.png" alt="Enfermeira Bete"></div>
+      <div>
+        <h1>Enfermeira Beth</h1>
+        <small>Controle inteligente de plantões</small>
+      </div>
+    </div>
+    <button class="iconbtn" onclick="openSupport()" title="Suporte">🆘</button>
+  </header>
+
+  <main>
+    <section id="view-inicio"></section>
+    <section id="view-calendario" class="hidden"></section>
+    <section id="view-vinculos" class="hidden"></section>
+    <section id="view-financeiro" class="hidden"></section>
+    <section id="view-config" class="hidden"></section>
+  </main>
+
+  <nav class="bottomnav">
+    <button data-tab="inicio" class="active"><span class="ico">🏠</span>Início</button>
+    <button data-tab="calendario"><span class="ico">📅</span>Calendário</button>
+    <button data-tab="vinculos"><span class="ico">🩺</span>Plantões</button>
+    <button data-tab="financeiro"><span class="ico">💰</span>Financeiro</button>
+    <button data-tab="config"><span class="ico">⚙️</span>Config</button>
+  </nav>
+</div>
+
+<div id="backdrop" onclick="closeSheet()"></div>
+<div id="sheet" role="dialog"></div>
+<div id="toast"></div>
+
+<div id="welcome" class="hidden">
+  <img class="wb-logo" src="img/logo-full.png" alt="Enfermeira Bete">
+  <h2>Bem-vinda ao Enfermeira BETH</h2>
+  <p>Controle inteligente de plantões.<br>Seus dados ficam apenas no seu celular.</p>
+  <input id="welcome-name" type="text" placeholder="Seu nome (opcional)" maxlength="40">
+  <button class="btn btn-block" style="background:#fff;color:var(--primary-dark);max-width:320px;margin:0 auto" onclick="finishWelcome()">Começar ➜</button>
+  <div class="hint">100% offline • Sem cadastro • Privacidade total</div>
+</div>
+
+<script>
+"use strict";
+/* ============ UTILITÁRIOS ============ */
+const pad = n => String(n).padStart(2,"0");
+const dkey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const mkey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+const todayKey = () => dkey(new Date());
+const parseKey = k => { const [y,m,dd] = k.split("-").map(Number); return new Date(y, m-1, dd); };
+const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const DOWS = ["dom","seg","ter","qua","qui","sex","sáb"];
+const fmtBR = k => { const d = parseKey(k); return `${pad(d.getDate())}/${pad(d.getMonth()+1)}`; };
+const fmtLong = k => { const d = parseKey(k); return `${DOWS[d.getDay()]}, ${d.getDate()} de ${MESES[d.getMonth()]}`; };
+const fmtMonth = mk => { const [y,m] = mk.split("-").map(Number); return `${MESES[m-1]} de ${y}`; };
+const BRL = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
+const money = v => BRL.format(v||0);
+const esc = s => String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const minOf = hm => { const [h,m] = hm.split(":").map(Number); return h*60+m; };
+const datetimeOf = (dateKey, hm) => { const d = parseKey(dateKey); const [h,m] = hm.split(":").map(Number); d.setHours(h,m,0,0); return d; };
+const fmtHM = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const fmtRange = (ini,fim) => `${fmtHM(ini)} → ${fmtHM(fim)}`;
+
+/* ============ PERSISTÊNCIA (LOCAL) ============ */
+const DB_KEY = "enfermeiraBeth_v1";
+const SCHEMA = 1;
+let db = { schema: SCHEMA, settings:{ nome:"", onboarded:false }, vinculos:[], ocorrencias:[], dayNotes:{} };
+
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(DB_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    if(!data || typeof data !== "object") return;
+    db = Object.assign(db, data);
+    db.settings = Object.assign({ nome:"", onboarded:false }, db.settings);
+    if(!Array.isArray(db.vinculos)) db.vinculos = [];
+    if(!Array.isArray(db.ocorrencias)) db.ocorrencias = [];
+    if(!db.dayNotes || typeof db.dayNotes !== "object") db.dayNotes = {};
+  }catch(e){
+    console.error("Falha ao carregar dados locais", e);
+    toast("⚠️ Não foi possível ler os dados salvos.");
+  }
+}
+function saveDB(){
+  try{
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+    return true;
+  }catch(e){
+    console.error("Falha ao salvar", e);
+    toast("⚠️ Erro ao salvar os dados. Verifique o espaço do navegador.");
+    return false;
+  }
+}
+/* ============ MOTOR DE ESCALAS ============ */
+// Ciclo: trabalha X horas → folga Y horas, a partir de dataInicial (1º dia de trabalho).
+function duracaoHoras(v){
+  let d = minOf(v.horaFim) - minOf(v.horaInicio);
+  if(d <= 0) d += 1440;
+  return d/60;
+}
+function cicloMs(v){ return (v.escala.trab + v.escala.folga) * 3600000; }
+function occurrenceEnd(ini, horas){ return new Date(ini.getTime() + horas*3600000); }
+
+// Gera ocorrências previstas até (hoje + 60 dias), sem duplicar (id determinístico).
+function syncVinculo(v, existing){
+  existing = existing || new Set(db.ocorrencias.map(o => o.id));
+  const horizon = new Date(); horizon.setHours(23,59,0,0); horizon.setDate(horizon.getDate()+60);
+  let t = datetimeOf(v.dataInicial, v.horaInicio);
+  const durH = duracaoHoras(v), ciclo = cicloMs(v);
+  const now = Date.now();
+  let created = 0;
+  while(t.getTime() <= horizon.getTime()){
+    if(t.getTime() + durH*3600000 > now){ // só gera ocorrências que ainda não terminaram
+      const id = `${v.id}|${dkey(t)}T${fmtHM(t)}`;
+      if(!existing.has(id)){
+        db.ocorrencias.push({
+          id, vinculoId: v.id, extra: false,
+          inicioISO: t.getTime(), fimISO: occurrenceEnd(t, durH).getTime(),
+          status: "previsto", editada: false, obs: "", valor: null,
+          criadoEm: Date.now(), atualizadoEm: Date.now()
+        });
+        existing.add(id); created++;
+      }
+    }
+    t = new Date(t.getTime() + ciclo);
+  }
+  return created;
+}
+function syncAll(){
+  const existing = new Set(db.ocorrencias.map(o => o.id));
+  db.vinculos.filter(v => v.ativo).forEach(v => syncVinculo(v, existing));
+  db.ocorrencias = db.ocorrencias.filter(o => o.vinculoId === null || db.vinculos.some(v => v.id === o.vinculoId));
+  saveDB();
+}
+// Ao editar vínculo: preserva histórico trabalhado/editado; regera apenas previstos futuros não editados.
+function resyncAfterEdit(v){
+  const agora = Date.now();
+  db.ocorrencias = db.ocorrencias.filter(o =>
+    !(o.vinculoId === v.id && o.status === "previsto" && !o.editada && o.inicioISO >= agora)
+  );
+  syncVinculo(v);
+  saveDB();
+}
+const vinculoDe = o => o.vinculoId ? db.vinculos.find(v => v.id === o.vinculoId) : null;
+const valorDe = o => o.valor != null ? o.valor : (vinculoDe(o)?.valorPorPlantao ?? 0);
+const STATUS_LABEL = { previsto:"Previsto", trabalhado:"Trabalhei", nao_trabalhado:"Não trabalhei", extra:"Extra" };
+const STATUS_ICON  = { previsto:"🔵", trabalhado:"🟢", nao_trabalhado:"🔴", extra:"🟡" };
+
+/* ============ CONFLITOS DE HORÁRIO ============ */
+function conflitosNoDia(dk){
+  const d0 = parseKey(dk).getTime(), d1 = d0 + 86400000;
+  const list = db.ocorrencias.filter(o => o.status !== "nao_trabalhado" && o.fimISO > d0 && o.inicioISO < d1)
+    .sort((a,b) => a.inicioISO - b.inicioISO);
+  const pares = [];
+  for(let i=0;i<list.length;i++)
+    for(let j=i+1;j<list.length;j++)
+      if(list[i].inicioISO < list[j].fimISO && list[j].inicioISO < list[i].fimISO)
+        pares.push([list[i], list[j]]);
+  return pares;
+}
+
+/* ============ UI BASE: TOAST / SHEET / TABS ============ */
+let toastTimer = null;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+function openSheet(html){
+  const s = document.getElementById("sheet");
+  s.innerHTML = `<div class="sheet-grab"></div>${html}`;
+  s.classList.add("open");
+  document.getElementById("backdrop").classList.add("open");
+}
+function closeSheet(){
+  document.getElementById("sheet").classList.remove("open");
+  document.getElementById("backdrop").classList.remove("open");
+}
+const sheetHead = title => `<div class="sheet-head"><h3>${title}</h3><button class="sheet-close" onclick="closeSheet()">✕</button></div>`;
+
+let currentTab = "inicio";
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll(".bottomnav button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "view-" + tab));
+  render();
+}
+/* ============ HELPERS DE OCORRÊNCIAS ============ */
+function ocorrenciasDoDia(dk){
+  const t0 = parseKey(dk).getTime(), t1 = t0 + 86400000;
+  return db.ocorrencias
+    .filter(o => o.status !== "nao_trabalhado" ? (o.inicioISO < t1 && o.fimISO > t0) : (o.inicioISO >= t0 && o.inicioISO < t1))
+    .sort((a,b) => a.inicioISO - b.inicioISO);
+}
+// Para o calendário: marca o dia em que o plantão COMEÇA (e dias de continuação de 24h)
+function mapaDiasDoMes(mk){
+  const [y,m] = mk.split("-").map(Number);
+  const first = new Date(y, m-1, 1), last = new Date(y, m, 0);
+  const map = {}; // dk -> [ocorrencias]
+  const t0M = first.getTime(), t1M = last.getTime() + 86399000;
+  db.ocorrencias.forEach(o => {
+    if(o.fimISO <= t0M || o.inicioISO >= t1M) return;
+    let d = new Date(Math.max(o.inicioISO, t0M)); d = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const fim = Math.min(o.fimISO, t1M);
+    while(d.getTime() < fim){
+      (map[dkey(d)] = map[dkey(d)] || []).push(o);
+      d = new Date(d.getTime() + 86400000);
+    }
+  });
+  return map;
+}
+
+/* ============ VIEW: INÍCIO ============ */
+function renderInicio(){
+  const el = document.getElementById("view-inicio");
+  const hoje = todayKey();
+  const nome = db.settings.nome ? db.settings.nome.split(" ")[0] : null;
+  const deHoje = ocorrenciasDoDia(hoje).filter(o => o.status !== "nao_trabalhado");
+  const agora = Date.now();
+  const proximo = db.ocorrencias
+    .filter(o => (o.status === "previsto" || o.status === "trabalhado") && o.fimISO > agora)
+    .sort((a,b) => a.inicioISO - b.inicioISO)[0];
+  const mk = mkey(new Date());
+  const fin = financasMes(mk);
+
+  let html = `
+    <div class="section-title" style="margin-top:0">${new Date().toLocaleDateString("pt-BR",{weekday:"long", day:"numeric", month:"long"})}</div>
+    ${nome ? `<h2 style="font-size:1.3rem;margin:0 4px 14px">Olá, ${esc(nome)} 👋</h2>` : ""}`;
+
+  if(window._ebInstallPrompt){
+    html += `<div class="card" style="background:linear-gradient(135deg,#e0f2f1,#fff)">
+      <h2>📲 Instale o aplicativo</h2>
+      <p class="small muted" style="margin-bottom:10px">Adicione à tela inicial para abrir mais rápido e usar offline.</p>
+      <button class="btn btn-primary btn-block" onclick="doInstall()">📲 Adicionar ao celular</button>
+    </div>`;
+  }
+
+  if(db.vinculos.length === 0){
+    html += `<div class="card"><div class="empty-state">
+      <img class="empty-logo" src="img/logo-mark.png" alt="Enfermeira Bete">
+      <b>Vamos começar?</b><br>
+      Cadastre seu primeiro plantão fixo e o app monta seu calendário automaticamente.
+      <div style="margin-top:16px"><button class="btn btn-primary" onclick="openVinculoForm()">➕ Cadastrar plantão fixo</button></div>
+    </div></div>`;
+  } else {
+    html += `<div class="card"><h2>📌 Plantões de hoje</h2>`;
+    if(deHoje.length === 0) html += `<div class="muted small">Nenhum plantão hoje 🎉</div>`;
+    deHoje.forEach(o => html += shiftItemHTML(o, false));
+    html += `</div>`;
+
+    if(proximo){
+      const v = vinculoDe(proximo) || { paciente:"Avulso", cooperativa:"" };
+      const ini = new Date(proximo.inicioISO), fim = new Date(proximo.fimISO);
+      html += `<div class="card"><h2>⏭️ Próximo plantão</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <div>
+            <div style="font-weight:800">${esc(v.paciente)}</div>
+            <div class="small muted">${fmtLong(dkey(ini))}</div>
+            <div class="small muted">${fmtRange(ini,fim)}${v.cooperativa ? " • " + esc(v.cooperativa) : ""}</div>
+          </div>
+          <span class="chip st-${proximo.status}">${STATUS_ICON[proximo.status]} ${STATUS_LABEL[proximo.status]}</span>
+        </div></div>`;
+    }
+
+    html += `<div class="card"><h2>🗓️ Este mês</h2><div class="fin-summary">
+      <div class="fin-box recebido"><div class="lbl">🟢 Realizado</div><div class="val">${fin.countTrab} plantões</div><div class="small" style="font-weight:700;color:#047857">${money(fin.valorTrab)}</div></div>
+      <div class="fin-box previsao"><div class="lbl">🔵 Previsto</div><div class="val">${fin.countPrev} plantões</div><div class="small" style="font-weight:700;color:#1d4ed8">${money(fin.valorPrev)}</div></div>
+    </div>
+    <button class="btn btn-soft btn-block" style="margin-top:12px" onclick="switchTab('financeiro')">Ver financeiro completo</button></div>`;
+  }
+  el.innerHTML = html;
+}
+function shiftItemHTML(o, clickable, extraMeta){
+  const v = vinculoDe(o) || {};
+  const ini = new Date(o.inicioISO), fim = new Date(o.fimISO);
+  const obs = o.obs ? `<div class="small muted" style="margin-top:4px">📝 ${esc(o.obs)}</div>` : "";
+  return `<div class="shift-item" ${clickable ? `onclick="openOccurrence('${o.id}')"` : ""} style="${clickable?"cursor:pointer":""}">
+    <div class="time">${fmtHM(ini)}<br>↓<br>${fmtHM(fim)}</div>
+    <div class="info">
+      <div class="paciente">${esc(o.extra ? (o.paciente || "Plantão extra") : (v.paciente || "—"))}</div>
+      <div class="meta">${esc(o.cooperativa || v.cooperativa || "")}${extraMeta || ""}</div>
+      ${obs}
+    </div>
+    <div style="text-align:right">
+      <div class="valor">${money(valorDe(o))}</div>
+      <span class="chip st-${o.status}">${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}</span>
+    </div>
+  </div>`;
+}
+
+/* ============ VIEW: CALENDÁRIO ============ */
+let calMonth = null; // 'YYYY-MM'
+function renderCalendario(){
+  const el = document.getElementById("view-calendario");
+  if(!calMonth) calMonth = mkey(new Date());
+  const [y,m] = calMonth.split("-").map(Number);
+  const first = new Date(y, m-1, 1);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const startDow = first.getDay();
+  const map = mapaDiasDoMes(calMonth);
+  const tk = todayKey();
+
+  let cells = "";
+  for(let i=0;i<startDow;i++) cells += `<div class="cal-cell empty"></div>`;
+  for(let d=1; d<=daysInMonth; d++){
+    const dk = `${calMonth}-${pad(d)}`;
+    const occs = map[dk] || [];
+    const dots = occs.slice(0,4).map(o =>
+      `<span class="dot dot-${o.extra ? "extra" : o.status}"></span>`).join("") +
+      (occs.length > 4 ? `<span class="small" style="font-size:.6rem;font-weight:700;color:var(--muted)">+${occs.length-4}</span>` : "");
+    cells += `<button class="cal-cell ${dk===tk?"today":""}" onclick="openDay('${dk}')">
+      <span class="d">${d}</span><span class="dots">${dots}</span></button>`;
+  }
+  const temDado = db.ocorrencias.length > 0 || db.vinculos.length > 0;
+  el.innerHTML = `
+    <div class="cal-head">
+      <button onclick="calShift(-1)">‹</button>
+      <span class="month">${fmtMonth(calMonth)}</span>
+      <button onclick="calShift(1)">›</button>
+    </div>
+    <div class="cal-grid">
+      ${DOWS.map(d => `<div class="cal-dow">${d}</div>`).join("")}
+      ${cells}
+    </div>
+    <div class="cal-legend">
+      <span><i class="dot-previsto"></i> Previsto</span>
+      <span><i class="dot-trabalhado"></i> Trabalhei</span>
+      <span><i class="dot-nao_trabalhado"></i> Não trabalhei</span>
+      <span><i class="dot-extra"></i> Extra</span>
+    </div>
+    ${temDado ? `<button class="btn btn-outline btn-block" style="margin-top:16px" onclick="openExtraForm('${tk}')">➕ Plantão extra</button>` : ""}`;
+}
+function calShift(n){
+  const [y,m] = calMonth.split("-").map(Number);
+  const d = new Date(y, m-1+n, 1);
+  calMonth = mkey(d);
+  renderCalendario();
+}
+/* ============ SHEET: DIA ============ */
+function openDay(dk){
+  const occs = ocorrenciasDoDia(dk);
+  const pares = conflitosNoDia(dk);
+  const note = db.dayNotes[dk] || "";
+  let html = sheetHead(`Plantões de ${fmtLong(dk)}`) + `<div class="sheet-body">`;
+  if(pares.length) html += `<div class="warn">⚠️ Atenção: existem plantões com horários sobrepostos neste dia.</div>`;
+  if(occs.length === 0) html += `<div class="empty-state"><div class="big">🌙</div>Nenhum plantão neste dia.</div>`;
+  occs.forEach(o => {
+    const meta = o.inicioISO < parseKey(dk).getTime() ? " (continuação)" : "";
+    html += shiftItemHTML(o, true, meta);
+  });
+  html += `
+    <div class="field" style="margin-top:14px">
+      <label>📝 Observação do dia</label>
+      <textarea id="day-note" placeholder="Ex.: Troquei o horário com uma colega.">${esc(note)}</textarea>
+    </div>
+    <button class="btn btn-soft btn-block" onclick="saveDayNote('${dk}')">Salvar observação</button>
+    <button class="btn btn-outline btn-block" style="margin-top:10px" onclick="openExtraForm('${dk}')">➕ Adicionar plantão extra neste dia</button>
+  </div>`;
+  openSheet(html);
+}
+function saveDayNote(dk){
+  const val = document.getElementById("day-note").value.trim();
+  if(val) db.dayNotes[dk] = val; else delete db.dayNotes[dk];
+  saveDB(); toast("Observação salva ✅");
+}
+/* ============ SHEET: OCORRÊNCIA ============ */
+function openOccurrence(id){
+  const o = db.ocorrencias.find(x => x.id === id);
+  if(!o) return;
+  const v = vinculoDe(o);
+  const ini = new Date(o.inicioISO), fim = new Date(o.fimISO);
+  const dk = dkey(ini);
+  let html = sheetHead(`${STATUS_ICON[o.status]} ${STATUS_LABEL[o.status]}`) + `<div class="sheet-body">
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-weight:800;font-size:1.05rem">${esc(o.extra ? (o.paciente||"Plantão extra") : (v?.paciente||"—"))}</div>
+      <div class="small muted" style="margin-top:4px">${fmtLong(dk)}</div>
+      <div class="small muted">${fmtRange(ini,fim)} • ${Math.round((o.fimISO-o.inicioISO)/3600000)}h</div>
+      <div class="small muted">${esc(o.extra ? (o.cooperativa||"") : (v?.cooperativa||""))}</div>
+      <div style="margin-top:8px;font-weight:800;color:var(--primary-dark);font-size:1.1rem">${money(valorDe(o))}</div>
+    </div>`;
+
+  if(!o.extra){
+    html += `<div class="small" style="font-weight:700;margin-bottom:6px">Como ficou este plantão?</div>
+    <div class="status-actions">
+      <button class="btn ${o.status==='trabalhado'?'btn-primary':'btn-soft'}" onclick="setStatus('${o.id}','trabalhado')">🟢 Trabalhei</button>
+      <button class="btn ${o.status==='nao_trabalhado'?'btn-danger':'btn-soft'}" onclick="setStatus('${o.id}','nao_trabalhado')">🔴 Não trabalhei</button>
+    </div>
+    ${o.status !== 'previsto' ? `<button class="btn btn-block btn-sm" style="margin-top:8px;color:var(--muted)" onclick="setStatus('${o.id}','previsto')">↩️ Voltar para previsto</button>` : ""}`;
+  } else {
+    html += `<div class="status-actions">
+      <button class="btn ${o.status==='trabalhado'?'btn-primary':'btn-soft'}" onclick="setStatus('${o.id}','trabalhado')">🟢 Trabalhei</button>
+      <button class="btn btn-danger" onclick="deleteExtra('${o.id}')">🗑️ Excluir</button>
+    </div>`;
+  }
+
+  html += `
+    <div class="section-title">Editar ocorrência</div>
+    <div class="field-row">
+      <div class="field"><label>Início</label><input type="time" id="oc-ini" value="${fmtHM(ini)}"></div>
+      <div class="field"><label>Fim</label><input type="time" id="oc-fim" value="${fmtHM(fim)}"></div>
+    </div>
+    <div class="field"><label>Valor deste plantão (R$)</label><input type="number" id="oc-valor" step="0.01" min="0" value="${o.valor != null ? o.valor : ""}" placeholder="${v?.valorPorPlantao ?? 0}"></div>
+    <div class="field"><label>Observação do plantão</label><textarea id="oc-obs" placeholder="Ex.: Paciente foi transferido para outro hospital.">${esc(o.obs)}</textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveOccurrence('${o.id}')">Salvar alterações</button>
+  </div>`;
+  openSheet(html);
+}
+function setStatus(id, status){
+  const o = db.ocorrencias.find(x => x.id === id);
+  if(!o) return;
+  o.status = status; o.editada = true; o.atualizadoEm = Date.now();
+  saveDB();
+  toast(status === "trabalhado" ? "🟢 Marcado como trabalhado!" :
+        status === "nao_trabalhado" ? "🔴 Marcado como não trabalhado." : "Atualizado.");
+  closeSheet(); render();
+}
+function deleteExtra(id){
+  if(!confirm("Excluir este plantão extra?")) return;
+  db.ocorrencias = db.ocorrencias.filter(o => o.id !== id);
+  saveDB(); closeSheet(); render(); toast("Plantão extra excluído.");
+}
+function saveOccurrence(id){
+  const o = db.ocorrencias.find(x => x.id === id);
+  if(!o) return;
+  const ini = document.getElementById("oc-ini").value || "07:00";
+  const fim = document.getElementById("oc-fim").value || "19:00";
+  const dIni = new Date(o.inicioISO); dIni.setHours(...ini.split(":").map(Number), 0, 0);
+  let dFim = new Date(o.inicioISO); dFim.setHours(...fim.split(":").map(Number), 0, 0);
+  if(dFim <= dIni) dFim.setDate(dFim.getDate()+1);
+  o.inicioISO = dIni.getTime();
+  o.fimISO = dFim.getTime();
+  const valorRaw = document.getElementById("oc-valor").value;
+  o.valor = valorRaw === "" ? null : Math.max(0, parseFloat(valorRaw));
+  o.obs = document.getElementById("oc-obs").value.trim();
+  o.editada = true; o.atualizadoEm = Date.now();
+  saveDB(); closeSheet(); render(); toast("Plantão atualizado ✅");
+}
+/* ============ SHEET: PLANTÃO EXTRA ============ */
+function openExtraForm(dk){
+  const dkVal = dk || todayKey();
+  const pacientes = [...new Set(db.vinculos.map(v => v.paciente))];
+  const coops = [...new Set(db.vinculos.map(v => v.cooperativa).filter(Boolean))];
+  let html = sheetHead("➕ Plantão extra") + `<div class="sheet-body">
+    <p class="small muted" style="margin-bottom:12px">Um plantão avulso, sem vínculo com escala.</p>
+    <div class="field"><label>Data</label><input type="date" id="ex-data" value="${dkVal}"></div>
+    <div class="field"><label>Paciente</label>
+      <input list="dl-pac" id="ex-paciente" placeholder="Nome do paciente" maxlength="60">
+      <datalist id="dl-pac">${pacientes.map(p => `<option value="${esc(p)}">`).join("")}</datalist>
+    </div>
+    <div class="field"><label>Cooperativa</label>
+      <input list="dl-coop" id="ex-coop" placeholder="Nome da cooperativa" maxlength="60">
+      <datalist id="dl-coop">${coops.map(c => `<option value="${esc(c)}">`).join("")}</datalist>
+    </div>
+    <div class="field"><label>Valor do plantão (R$)</label><input type="number" id="ex-valor" step="0.01" min="0" placeholder="250.00"></div>
+    <div class="field-row">
+      <div class="field"><label>Horário início</label><input type="time" id="ex-ini" value="07:00"></div>
+      <div class="field"><label>Horário fim</label><input type="time" id="ex-fim" value="19:00"></div>
+    </div>
+    <div class="field"><label>Observação</label><textarea id="ex-obs" placeholder="Opcional"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveExtra()">Salvar plantão extra</button>
+  </div>`;
+  openSheet(html);
+}
+function saveExtra(){
+  const dk = document.getElementById("ex-data").value;
+  const paciente = document.getElementById("ex-paciente").value.trim();
+  const valor = parseFloat(document.getElementById("ex-valor").value);
+  if(!dk){ toast("⚠️ Informe a data."); return; }
+  if(!paciente){ toast("⚠️ Informe o paciente."); return; }
+  if(isNaN(valor) || valor <= 0){ toast("⚠️ Informe o valor do plantão."); return; }
+  const hmIni = document.getElementById("ex-ini").value || "07:00";
+  const hmFim = document.getElementById("ex-fim").value || "19:00";
+  const ini = datetimeOf(dk, hmIni);
+  let fim = datetimeOf(dk, hmFim);
+  if(fim <= ini) fim.setDate(fim.getDate()+1);
+  db.ocorrencias.push({
+    id: uid(), vinculoId: null, extra: true,
+    paciente, cooperativa: document.getElementById("ex-coop").value.trim(),
+    inicioISO: ini.getTime(), fimISO: fim.getTime(),
+    status: "extra", editada: true, obs: document.getElementById("ex-obs").value.trim(),
+    valor, criadoEm: Date.now(), atualizadoEm: Date.now()
+  });
+  saveDB(); closeSheet(); calMonth = mkey(parseKey(dk)); render();
+  toast("🟡 Plantão extra adicionado!");
+}
+/* ============ VIEW: VÍNCULOS (PACIENTES/PLANTÕES FIXOS) ============ */
+function renderVinculos(){
+  const el = document.getElementById("view-vinculos");
+  let html = `<button class="btn btn-primary btn-block" style="margin-bottom:16px" onclick="openVinculoForm()">➕ Cadastrar plantão fixo</button>`;
+  if(db.vinculos.length === 0){
+    html += `<div class="card"><div class="empty-state">
+      <div class="big">📅</div>
+      Cadastre um paciente/vínculo com a escala dele.<br>
+      O Enfermeira BETH monta o calendário automaticamente.
+    </div></div>`;
+  }
+  db.vinculos.forEach(v => {
+    const escalaTxt = `${v.escala.trab}x${v.escala.folga}`;
+    const trabalhados = db.ocorrencias.filter(o => o.vinculoId === v.id && o.status === "trabalhado").length;
+    const proximos = db.ocorrencias.filter(o => o.vinculoId === v.id && o.status === "previsto").length;
+    html += `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div class="avatar">${esc((v.paciente||"?").trim().charAt(0).toUpperCase())}</div>
+        <div>
+          <div style="font-weight:800;font-size:1.02rem">${esc(v.paciente)}</div>
+          <div class="small muted">${esc(v.cooperativa)}</div>
+        </div>
+        <span class="chip ${v.ativo ? "st-trabalhado" : "st-nao_trabalhado"}">${v.ativo ? "Ativo" : "Pausado"}</span>
+      </div>
+      <div class="small" style="margin-top:10px;color:var(--muted)">
+        💰 ${money(v.valorPorPlantao)} / plantão &nbsp;•&nbsp; ⏱️ ${v.horaInicio} → ${v.horaFim} (${Math.round(duracaoHoras(v))}h)<br>
+        🔁 Escala ${escalaTxt} • início ${fmtBR(v.dataInicial)}
+      </div>
+      ${v.observacoes ? `<div class="small muted" style="margin-top:8px">📝 ${esc(v.observacoes)}</div>` : ""}
+      <div class="small" style="margin-top:8px">🟢 ${trabalhados} trabalhados • 🔵 ${proximos} previstos</div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-soft btn-sm" style="flex:1" onclick="openVinculoForm('${v.id}')">✏️ Editar</button>
+        <button class="btn btn-soft btn-sm" style="flex:1" onclick="toggleVinculo('${v.id}')">${v.ativo ? "⏸️ Pausar" : "▶️ Ativar"}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteVinculo('${v.id}')">🗑️</button>
+      </div>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+function toggleVinculo(id){
+  const v = db.vinculos.find(x => x.id === id);
+  if(!v) return;
+  v.ativo = !v.ativo;
+  if(v.ativo) syncVinculo(v);
+  saveDB(); render();
+  toast(v.ativo ? "Vínculo ativado ✅" : "Vínculo pausado. Nenhum novo plantão será gerado.");
+}
+function deleteVinculo(id){
+  const v = db.vinculos.find(x => x.id === id);
+  if(!v) return;
+  const trab = db.ocorrencias.filter(o => o.vinculoId === id && o.status === "trabalhado").length;
+  const msg = `Excluir o vínculo "${v.paciente}"?\n\n` +
+    (trab > 0 ? `⚠️ Isto também apagará ${trab} plantão(ões) JÁ TRABALHADO(S) — R$ ${ (db.ocorrencias.filter(o=>o.vinculoId===id&&o.status==='trabalhado').reduce((s,o)=>s+valorDe(o),0)).toFixed(2) } do histórico.\n\n` : "") +
+    "Esta ação não pode ser desfeita. Considere apenas PAUSAR o vínculo.";
+  if(!confirm(msg)) return;
+  db.vinculos = db.vinculos.filter(x => x.id !== id);
+  db.ocorrencias = db.ocorrencias.filter(o => o.vinculoId !== id);
+  saveDB(); render(); toast("Vínculo excluído.");
+}
+/* ============ SHEET: FORMULÁRIO DE VÍNCULO ============ */
+function openVinculoForm(id){
+  const v = id ? db.vinculos.find(x => x.id === id) : null;
+  const esc_ = v ? v.escala : { trab:12, folga:36 };
+  const isCustom = ![[12,36],[24,48],[24,72],[12,12]].some(p => p[0]===esc_.trab && p[1]===esc_.folga);
+  const today = todayKey();
+  let html = sheetHead(v ? "✏️ Editar vínculo" : "➕ Novo plantão fixo") + `<div class="sheet-body">
+    <div id="vf-error" class="form-error hidden"></div>
+    <div class="field"><label>Paciente *</label><input id="vf-paciente" maxlength="60" placeholder="Nome do paciente" value="${esc(v?.paciente||"")}"></div>
+    <div class="field"><label>Cooperativa *</label><input id="vf-coop" maxlength="60" placeholder="Nome da cooperativa" value="${esc(v?.cooperativa||"")}"></div>
+    <div class="field"><label>Valor por plantão (R$) *</label><input id="vf-valor" type="number" step="0.01" min="0" placeholder="180.00" value="${v?.valorPorPlantao ?? ""}"></div>
+    <div class="field-row">
+      <div class="field"><label>Horário início</label><input id="vf-hini" type="time" oninput="vfDurUpdate()" value="${v?.horaInicio||"07:00"}"></div>
+      <div class="field"><label>Horário fim</label><input id="vf-hfim" type="time" oninput="vfDurUpdate()" value="${v?.horaFim||"19:00"}"></div>
+    </div>
+    <div class="small muted" id="vf-dur" style="margin:-8px 0 14px 4px"></div>
+    <div class="field"><label>Escala *</label>
+      <select id="vf-escala" onchange="vfEscalaChange()">
+        <option value="12x36" ${!isCustom && esc_.trab===12&&esc_.folga===36?"selected":""}>12x36 (trabalha 12h, folga 36h)</option>
+        <option value="12x12" ${!isCustom && esc_.trab===12&&esc_.folga===12?"selected":""}>12x12 (alterna dias)</option>
+        <option value="24x48" ${!isCustom && esc_.trab===24&&esc_.folga===48?"selected":""}>24x48 (24h, folga 48h)</option>
+        <option value="24x72" ${!isCustom && esc_.trab===24&&esc_.folga===72?"selected":""}>24x72 (24h, folga 72h)</option>
+        <option value="custom" ${isCustom?"selected":""}>Personalizada…</option>
+      </select>
+    </div>
+    <div id="vf-custom" class="${isCustom?"":"hidden"}" style="margin-bottom:14px">
+      <div class="field-row">
+        <div class="field"><label>Trabalha (horas)</label><input id="vf-trab" type="number" min="1" max="48" value="${esc_.trab}"></div>
+        <div class="field"><label>Folga (horas)</label><input id="vf-folga" type="number" min="0" max="720" value="${esc_.folga}"></div>
+      </div>
+    </div>
+    <div class="field"><label>Data inicial (primeiro plantão) *</label><input id="vf-data" type="date" value="${v?.dataInicial||today}"></div>
+    <div class="field"><label>Observações</label><textarea id="vf-obs" placeholder="Opcional — ex.: contato da família">${esc(v?.observacoes||"")}</textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveVinculo(${v?`'${v.id}'`:"null"})">${v ? "Salvar alterações" : "Cadastrar e gerar plantões"}</button>
+    ${v ? `<p class="small muted" style="margin-top:10px;text-align:center">Ao alterar a escala, os plantões já trabalhados e editados são preservados.</p>` : ""}
+  </div>`;
+  openSheet(html);
+  vfEscalaChange();
+}
+function vfEscalaChange(){
+  const custom = document.getElementById("vf-escala").value === "custom";
+  document.getElementById("vf-custom").classList.toggle("hidden", !custom);
+  vfDurUpdate();
+}
+function vfDurUpdate(){
+  const el = document.getElementById("vf-dur");
+  if(!el) return;
+  const ini = document.getElementById("vf-hini").value, fim = document.getElementById("vf-hfim").value;
+  if(!ini || !fim){ el.textContent = ""; return; }
+  let d = minOf(fim) - minOf(ini); if(d <= 0) d += 1440;
+  el.textContent = `⏱️ Duração do plantão: ${Math.floor(d/60)}h${d%60 ? (d%60)+"min" : ""}${d >= 1440 ? " (24h)" : ""}`;
+}
+function saveVinculo(id){
+  const err = document.getElementById("vf-error");
+  const paciente = document.getElementById("vf-paciente").value.trim();
+  const cooperativa = document.getElementById("vf-coop").value.trim();
+  const valor = parseFloat(document.getElementById("vf-valor").value);
+  const hIni = document.getElementById("vf-hini").value;
+  const hFim = document.getElementById("vf-hfim").value;
+  const data = document.getElementById("vf-data").value;
+  const sel = document.getElementById("vf-escala").value;
+  const escala = sel === "custom"
+    ? { trab: parseInt(document.getElementById("vf-trab").value)||0, folga: parseInt(document.getElementById("vf-folga").value)||0 }
+    : (() => { const [a,b] = sel.split("x").map(Number); return { trab:a, folga:b }; })();
+  function fail(m){ err.textContent = "⚠️ " + m; err.classList.remove("hidden"); }
+  if(!paciente) return fail("Informe o nome do paciente.");
+  if(!cooperativa) return fail("Informe a cooperativa.");
+  if(isNaN(valor) || valor <= 0) return fail("Informe o valor por plantão.");
+  if(!hIni || !hFim) return fail("Informe os horários.");
+  if(escala.trab < 1 || (escala.folga < 0)) return fail("Escala inválida.");
+  if(!data) return fail("Informe a data inicial.");
+
+  if(id){
+    const v = db.vinculos.find(x => x.id === id);
+    Object.assign(v, { paciente, cooperativa, valorPorPlantao: valor, horaInicio: hIni, horaFim: hFim,
+      dataInicial: data, escala, observacoes: document.getElementById("vf-obs").value.trim() });
+    resyncAfterEdit(v);
+    toast("Vínculo atualizado — previsões regeradas ✅");
+  } else {
+    const v = { id: uid(), paciente, cooperativa, valorPorPlantao: valor, horaInicio: hIni, horaFim: hFim,
+      dataInicial: data, escala, observacoes: document.getElementById("vf-obs").value.trim(), ativo: true, criadoEm: Date.now() };
+    db.vinculos.push(v);
+    const n = syncVinculo(v);
+    saveDB();
+    toast(`✅ Vínculo criado! ${n} plantões previstos no calendário.`);
+    switchTab("calendario");
+  }
+  closeSheet(); render();
+}
+/* ============ FINANCEIRO ============ */
+let finFiltros = { mes:null, paciente:"", coop:"", periodoIni:"", periodoFim:"" };
+
+function financasMes(mk){
+  const [y,m] = mk.split("-").map(Number);
+  const t0 = new Date(y, m-1, 1).getTime();
+  const t1 = new Date(y, m, 1).getTime();
+  const occs = db.ocorrencias.filter(o => o.inicioISO >= t0 && o.inicioISO < t1 && (o.status === "previsto" || o.status === "trabalhado" || o.status === "extra"));
+  const trab = occs.filter(o => o.status === "trabalhado");
+  const prev = occs.filter(o => o.status !== "trabalhado");
+  return {
+    countTrab: trab.length, valorTrab: trab.reduce((s,o) => s + valorDe(o), 0),
+    countPrev: prev.length, valorPrev: prev.reduce((s,o) => s + valorDe(o), 0)
+  };
+}
+function renderFinanceiro(){
+  const el = document.getElementById("view-financeiro");
+  if(!finFiltros.mes) finFiltros.mes = mkey(new Date());
+  const { mes, paciente, coop, periodoIni, periodoFim } = finFiltros;
+  const usoPeriodo = !!(periodoIni && periodoFim);
+
+  let occs, titulo;
+  if(usoPeriodo){
+    const t0 = parseKey(periodoIni).getTime(), t1 = parseKey(periodoFim).getTime() + 86399000;
+    occs = db.ocorrencias.filter(o => o.inicioISO >= t0 && o.inicioISO <= t1);
+    titulo = `${fmtBR(periodoIni)} até ${fmtBR(periodoFim)}`;
+  } else {
+    const [y,m] = mes.split("-").map(Number);
+    const t0 = new Date(y, m-1, 1).getTime(), t1 = new Date(y, m, 1).getTime();
+    occs = db.ocorrencias.filter(o => o.inicioISO >= t0 && o.inicioISO < t1);
+    titulo = fmtMonth(mes);
+  }
+  occs = occs.filter(o => ["previsto","trabalhado","extra"].includes(o.status));
+  if(paciente) occs = occs.filter(o => (vinculoDe(o)?.paciente) === paciente);
+  if(coop) occs = occs.filter(o => (vinculoDe(o)?.cooperativa || (o.extra ? o.cooperativa : "")) === coop);
+
+  const trab = occs.filter(o => o.status === "trabalhado");
+  const prev = occs.filter(o => o.status !== "trabalhado");
+  const valorTrab = trab.reduce((s,o) => s + valorDe(o), 0);
+  const valorPrev = prev.reduce((s,o) => s + valorDe(o), 0);
+
+  // quebramento por cooperativa e por paciente
+  const byCoop = {}, byPac = {};
+  occs.forEach(o => {
+    const c = vinculoDe(o)?.cooperativa || (o.extra ? (o.cooperativa || "Sem cooperativa") : "Sem cooperativa");
+    const p = vinculoDe(o)?.paciente || (o.extra ? (o.paciente || "Avulso") : "Avulso");
+    const val = valorDe(o), isTrab = o.status === "trabalhado";
+    byCoop[c] = byCoop[c] || { n:0, v:0, nt:0, vt:0 };
+    byPac[p] = byPac[p] || { n:0, v:0, nt:0, vt:0 };
+    byCoop[c].n++; byCoop[c].v += val;
+    byPac[p].n++; byPac[p].v += val;
+    if(isTrab){ byCoop[c].nt++; byCoop[c].vt += val; byPac[p].nt++; byPac[p].vt += val; }
+  });
+  const rowBreak = (nome, d) => `<div class="breakdown">
+    <div><div style="font-weight:700">${esc(nome)}</div><div class="b-n">${d.nt} trabalhados de ${d.n} plantões</div></div>
+    <div class="b-val">${money(d.vt)}<div class="b-n" style="color:var(--muted)">previsto ${money(d.v)}</div></div></div>`;
+
+  const pacientesLista = [...new Set(db.vinculos.map(v => v.paciente))];
+  const coopsLista = [...new Set(db.vinculos.map(v => v.cooperativa).filter(Boolean))];
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="cal-head">
+        <button onclick="finShiftMonth(-1)" ${usoPeriodo?"disabled style='opacity:.4'":""}>‹</button>
+        <span class="month">${titulo}</span>
+        <button onclick="finShiftMonth(1)" ${usoPeriodo?"disabled style='opacity:.4'":""}>›</button>
+      </div>
+      <div class="fin-summary" style="margin-top:12px">
+        <div class="fin-box recebido"><div class="lbl">🟢 Realizado</div><div class="val">${trab.length}</div><div class="small" style="font-weight:700;color:#047857">${money(valorTrab)}</div></div>
+        <div class="fin-box previsao"><div class="lbl">🔵 Previsto</div><div class="val">${prev.length}</div><div class="small" style="font-weight:700;color:#1d4ed8">${money(valorPrev)}</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>🔎 Filtros</h2>
+      <div class="field"><label>Paciente</label>
+        <select onchange="finSetFiltro('paciente',this.value)">
+          <option value="">Todos os pacientes</option>
+          ${pacientesLista.map(p => `<option value="${esc(p)}" ${paciente===p?"selected":""}>${esc(p)}</option>`).join("")}
+        </select></div>
+      <div class="field"><label>Cooperativa</label>
+        <select onchange="finSetFiltro('coop',this.value)">
+          <option value="">Todas as cooperativas</option>
+          ${coopsLista.map(c => `<option value="${esc(c)}" ${coop===c?"selected":""}>${esc(c)}</option>`).join("")}
+        </select></div>
+      <div class="field-row">
+        <div class="field"><label>Período — de</label><input type="date" value="${periodoIni}" onchange="finSetFiltro('periodoIni',this.value)"></div>
+        <div class="field"><label>até</label><input type="date" value="${periodoFim}" onchange="finSetFiltro('periodoFim',this.value)"></div>
+      </div>
+      ${usoPeriodo || paciente || coop ? `<button class="btn btn-soft btn-sm" onclick="finLimpar()">✕ Limpar filtros</button>` : ""}
+    </div>
+    ${Object.keys(byCoop).length ? `<div class="card"><h2>🏥 Por cooperativa</h2>${Object.entries(byCoop).sort((a,b)=>b[1].v-a[1].v).map(([c,d]) => rowBreak(c,d)).join("")}</div>` : ""}
+    ${Object.keys(byPac).length ? `<div class="card"><h2>Por paciente</h2>${Object.entries(byPac).sort((a,b)=>b[1].v-a[1].v).map(([c,d]) => rowBreak(c,d)).join("")}</div>` : ""}
+    ${Object.keys(byCoop).length === 0 ? `<div class="card"><div class="empty-state"><div class="big">💰</div>Sem plantões neste período/filtro.</div></div>` : ""}`;
+}
+function finShiftMonth(n){
+  if(finFiltros.periodoIni && finFiltros.periodoFim){ finFiltros.periodoIni = finFiltros.periodoFim = ""; }
+  const [y,m] = finFiltros.mes.split("-").map(Number);
+  finFiltros.mes = mkey(new Date(y, m-1+n, 1));
+  renderFinanceiro();
+}
+function finSetFiltro(k, val){ finFiltros[k] = val; renderFinanceiro(); }
+function finLimpar(){
+  finFiltros = { mes: finFiltros.mes || mkey(new Date()), paciente:"", coop:"", periodoIni:"", periodoFim:"" };
+  renderFinanceiro();
+}
+/* ============ VIEW: CONFIGURAÇÕES ============ */
+function renderConfig(){
+  const el = document.getElementById("view-config");
+  const instalado = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+  el.innerHTML = `
+    <div class="card">
+      <h2>👤 Perfil</h2>
+      <div class="field"><label>Nome da profissional</label>
+        <input id="cfg-nome" maxlength="40" placeholder="Seu nome" value="${esc(db.settings.nome)}">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="saveNome()">Salvar nome</button>
+    </div>
+    <div class="card">
+      <h2>📲 Aplicativo</h2>
+      ${instalado
+        ? `<p class="small muted">✅ O aplicativo está instalado neste dispositivo.</p>`
+        : `<button class="btn btn-primary btn-block" onclick="doInstall()">📲 Adicionar ao celular</button>
+           <p class="small muted" style="margin-top:10px">Se o botão não funcionar:<br>
+           <b>iPhone (Safari):</b> botão Compartilhar → "Adicionar à Tela de Início".<br>
+           <b>Android (Chrome):</b> menu ⋮ → "Instalar aplicativo".</p>`}
+      <button class="btn btn-outline btn-block" style="margin-top:10px" onclick="shareApp()">📤 Compartilhar o Enfermeira BETH</button>
+      <p class="small muted" style="margin-top:8px">Cada pessoa que instalar tem seus próprios dados, salvos apenas no próprio celular.</p>
+    </div>
+    <div class="card">
+      <h2>💾 Meus dados</h2>
+      <p class="small muted" style="margin-bottom:12px">Tudo fica salvo apenas neste dispositivo. Faça backup regularmente para não perder nada se trocar de celular.</p>
+      <button class="btn btn-soft btn-block" onclick="exportBackup()">⬇️ Exportar backup</button>
+      <button class="btn btn-soft btn-block" style="margin-top:10px" onclick="document.getElementById('import-file').click()">⬆️ Importar backup</button>
+      <input type="file" id="import-file" accept=".json,application/json" class="hidden" onchange="importBackup(this)">
+      <button class="btn btn-danger btn-block" style="margin-top:18px" onclick="wipeAll()">🗑️ Apagar todos os dados</button>
+    </div>
+    <div class="card">
+      <h2>🆘 Ajuda</h2>
+      <button class="btn btn-soft btn-block" onclick="openSupport()">Falar com o suporte no WhatsApp</button>
+      <div style="text-align:center;margin-top:16px">
+        <img class="about-logo" src="img/logo-mark.png" alt="Enfermeira Bete">
+        <p class="small muted">
+          Enfermeira BETH v1.1<br>
+          🔒 100% offline • Sem cadastro • Sem servidores<br>
+          Seus dados nunca saem do seu celular.
+        </p>
+      </div>
+    </div>`;
+}
+function saveNome(){
+  db.settings.nome = document.getElementById("cfg-nome").value.trim();
+  saveDB(); toast("Nome salvo ✅"); render();
+}
+function openSupport(){
+  const msg = encodeURIComponent("Olá, preciso de ajuda com o aplicativo Enfermeira BETH.");
+  window.open(`https://wa.me/5581985008954?text=${msg}`, "_blank");
+}
+function shareApp(){
+  const data = { title:"Enfermeira Beth", text:"Controle inteligente de plantões 💙", url: location.href };
+  if(navigator.share){ navigator.share(data).catch(() => {}); }
+  else if(navigator.clipboard){
+    navigator.clipboard.writeText(location.href).then(() => toast("🔗 Link copiado! Envie para uma colega."));
+  } else toast("Copie o link do navegador para compartilhar.");
+}
+function exportBackup(){
+  const blob = new Blob([JSON.stringify(db, null, 2)], { type:"application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `enfermeira-beth-backup-${todayKey()}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast("Backup exportado ✅");
+}
+function importBackup(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(!data || !Array.isArray(data.vinculos) || !Array.isArray(data.ocorrencias)) throw new Error("formato");
+      if(!confirm("Importar este backup? Os dados atuais deste celular serão substituídos.")) return;
+      db = Object.assign({ schema:1, settings:{nome:"",onboarded:true}, vinculos:[], ocorrencias:[], dayNotes:{} }, data);
+      db.settings = Object.assign({ nome:"", onboarded:true }, db.settings);
+      saveDB(); syncAll(); render();
+      toast("Backup importado com sucesso ✅");
+    }catch(e){
+      toast("⚠️ Arquivo de backup inválido.");
+    }
+    input.value = "";
+  };
+  reader.readAsText(file);
+}
+function wipeAll(){
+  if(!confirm("APAGAR TODOS OS DADOS?\n\nVínculos, plantões, histórico trabalhado e valores serão permanentemente apagados deste dispositivo.")) return;
+  if(!confirm("Tem certeza absoluta? Esta ação não pode ser desfeita.\n\nDica: exporte um backup antes.")) return;
+  db = { schema: SCHEMA, settings:{ nome:"", onboarded:true }, vinculos:[], ocorrencias:[], dayNotes:{} };
+  saveDB(); render(); toast("Dados apagados.");
+}
+
+/* ============ PWA ============ */
+window._ebInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  window._ebInstallPrompt = e;
+  if(currentTab === "inicio" || currentTab === "config") render();
+});
+function doInstall(){
+  const p = window._ebInstallPrompt;
+  if(p){ p.prompt(); p.userChoice.then(() => { window._ebInstallPrompt = null; render(); }); }
+  else toast("Use o menu do navegador: 'Adicionar à Tela de Início'.");
+}
+if("serviceWorker" in navigator){
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+
+/* ============ WELCOME / INIT ============ */
+function finishWelcome(){
+  db.settings.nome = document.getElementById("welcome-name").value.trim();
+  db.settings.onboarded = true;
+  saveDB();
+  document.getElementById("welcome").classList.add("hidden");
+  if(db.vinculos.length === 0) openVinculoForm();
+}
+function render(){
+  if(currentTab === "inicio") renderInicio();
+  else if(currentTab === "calendario") renderCalendario();
+  else if(currentTab === "vinculos") renderVinculos();
+  else if(currentTab === "financeiro") renderFinanceiro();
+  else if(currentTab === "config") renderConfig();
+}
+document.querySelectorAll(".bottomnav button").forEach(b =>
+  b.addEventListener("click", () => switchTab(b.dataset.tab)));
+
+loadDB();
+syncAll();
+if(!db.settings.onboarded) document.getElementById("welcome").classList.remove("hidden");
+render();
+// Splash: exibe a logo na abertura e some suavemente
+const _splash = document.getElementById("splash");
+setTimeout(() => {
+  _splash.classList.add("hide");
+  setTimeout(() => _splash.remove(), 400);
+}, 900);
+// atualiza os dados quando o app volta do segundo plano
+document.addEventListener("visibilitychange", () => { if(!document.hidden){ syncAll(); render(); } });
+
+
+
+
+
+
+
+
+
+
+
+
+
+</script>
+
+</body>
+</html>
